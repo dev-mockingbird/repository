@@ -45,9 +45,9 @@ type dbrepo struct {
 	model any
 }
 
-// NewGormRepository
+// NewRepository
 // usage:
-//   repo := NewGormRepository(db)
+//   repo := New(db)
 //   // find
 //   var users []User
 //   ctx := context.Background()
@@ -70,8 +70,13 @@ type dbrepo struct {
 //   	}
 //   }
 //   err := repo.Find(ctx, database.M(&books, &Book{}).With(&User{}, AuthorID(Field("users.id"))), Limit(20))
-func NewRepository(db *gorm.DB, model any) Repository {
-	return &dbrepo{db: db, model: model}
+func New(db *gorm.DB, model ...any) Repository {
+	return &dbrepo{db: db, model: func() any {
+		if len(model) > 0 {
+			return model[0]
+		}
+		return nil
+	}()}
 }
 
 func (db *dbrepo) First(ctx context.Context, v any, opts ...MatchOption) error {

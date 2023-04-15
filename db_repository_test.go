@@ -83,7 +83,7 @@ func TestGormRepository_Join(t *testing.T) {
 	defer assert.Nil(t, mock.ExpectationsWereMet())
 	gdb, err := gorm.Open(dialector(db)) // open gorm db
 	assert.Nil(t, err)
-	repo := NewRepository(gdb, &Book{})
+	repo := New(gdb, &Book{})
 	func() {
 		execSql := "^SELECT books\\.id AS id,books\\.name AS name,users\\.id AS author_id,users\\.name AS author_name FROM `books` LEFT JOIN users ON book\\.author_id = user\\.id WHERE book\\.author_id IN \\(\\?,\\?,\\?\\)$"
 		mock.ExpectQuery(execSql).
@@ -105,7 +105,7 @@ func TestGormRepository_Group(t *testing.T) {
 	defer assert.Nil(t, mock.ExpectationsWereMet())
 	gdb, err := gorm.Open(dialector(db)) // open gorm db
 	assert.Nil(t, err)
-	repo := NewRepository(gdb, nil)
+	repo := New(gdb, nil)
 	func() {
 		execSql := "^SELECT author_id AS author_id,count\\(id\\) AS books FROM `books` WHERE book\\.author_id IN \\(\\?,\\?,\\?\\) GROUP BY `author_id` HAVING count\\(id\\) >= \\?$"
 		mock.ExpectQuery(execSql).
