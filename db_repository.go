@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -82,34 +83,42 @@ func New(db *gorm.DB, model ...any) Repository {
 func (db *dbrepo) First(ctx context.Context, v any, opts ...MatchOption) error {
 	selector, result := db.prepare(v)
 	db.applyOptions(selector, opts...)
-	return selector.First(result).Error
+	return db.transformError(selector.First(result).Error)
+
 }
 
 func (db *dbrepo) Find(ctx context.Context, v any, opts ...MatchOption) error {
 	selector, result := db.prepare(v)
 	db.applyOptions(selector, opts...)
-	return selector.Find(result).Error
+	return db.transformError(selector.Find(result).Error)
+}
+
+func (db *dbrepo) transformError(err error) error {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return ErrRecordNotFound
+	}
+	return err
 }
 
 // db.Count(ctx, database.M(result, &User{}))
 func (db *dbrepo) Count(ctx context.Context, result *int64, opts ...MatchOption) error {
 	selector, _ := db.prepare(db.model)
 	db.applyOptions(selector, opts...)
-	return selector.Count(result).Error
+	return db.transformError(selector.Count(result).Error)
 }
 
 func (db *dbrepo) Update(ctx context.Context, v any) error {
-	return db.db.Save(v).Error
+	return db.transformError(db.db.Save(v).Error)
 }
 
 func (db *dbrepo) Delete(ctx context.Context, opts ...MatchOption) error {
 	deletor := db.db.Model(db.model)
 	db.applyOptions(deletor, opts...)
-	return deletor.Delete(db.model).Error
+	return db.transformError(deletor.Delete(db.model).Error)
 }
 
 func (db *dbrepo) Create(ctx context.Context, v any) error {
-	return db.db.Create(v).Error
+	return db.transformError(db.db.Create(v).Error)
 }
 
 func (db *dbrepo) UpdateFields(ctx context.Context, fields Fields, opts ...MatchOption) error {
