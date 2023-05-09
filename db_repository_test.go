@@ -119,3 +119,45 @@ func TestGormRepository_Group(t *testing.T) {
 	)
 	assert.Nil(t, err)
 }
+
+func TestGormRepository_Panic(t *testing.T) {
+	db, mock, err := sqlmock.New() // mock sql.DB
+	assert.Nil(t, err)
+	defer db.Close()
+	defer assert.Nil(t, mock.ExpectationsWereMet())
+	gdb, err := gorm.Open(dialector(db)) // open gorm db
+	assert.Nil(t, err)
+	repo := New(gdb, nil)
+	func() {
+		execSql := "^SELECT count\\(id\\) AS books FROM `books` WHERE book\\.author_id IN \\(\\?,\\?,\\?\\) GROUP BY `author_id` HAVING count\\(id\\) >= \\?$"
+		mock.ExpectQuery(execSql).
+			WithArgs("1", "2", "3", 10).
+			WillReturnRows(sqlmock.NewRows([]string{"author_id", "books"}))
+	}()
+	g := []*GroupTest{}
+	model := M(&g, &Book{}). // .Fields(Field(Distinct("author_id")).AS("author_id")).
+					Group("author_id", func(opts *MatchOptions) { opts.GTE("count(id)", 10) })
+	err = repo.Find(context.Background(), model, AuthorID([]string{"1", "2", "3"}))
+	assert.Nil(t, err)
+}
+
+func TestGormRepository_Select(t *testing.T) {
+	db, mock, err := sqlmock.New() // mock sql.DB
+	assert.Nil(t, err)
+	defer db.Close()
+	defer assert.Nil(t, mock.ExpectationsWereMet())
+	gdb, err := gorm.Open(dialector(db)) // open gorm db
+	assert.Nil(t, err)
+	repo := New(gdb, nil)
+	func() {
+		execSql := "^SELECT COUNT\\(DISTINCT author_id\\) AS author_id FROM `books` WHERE book\\.author_id IN \\(\\?,\\?,\\?\\) GROUP BY `author_id` HAVING count\\(id\\) >= \\?$"
+		mock.ExpectQuery(execSql).
+			WithArgs("1", "2", "3", 10).
+			WillReturnRows(sqlmock.NewRows([]string{"author_id", "books"}))
+	}()
+	g := []*GroupTest{}
+	model := M(&g, &Book{}).Fields(Field(Count(Distinct("author_id"))).AS("author_id")).
+		Group("author_id", func(opts *MatchOptions) { opts.GTE("count(id)", 10) })
+	err = repo.Find(context.Background(), model, AuthorID([]string{"1", "2", "3"}))
+	assert.Nil(t, err)
+}

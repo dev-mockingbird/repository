@@ -4,13 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"reflect"
-	"strings"
-
 	"github.com/yang-zzhong/structs"
 	"github.com/yang-zzhong/xl/utils"
-
 	"gorm.io/gorm"
+	"reflect"
+	"strings"
 )
 
 func (f Field) DESC() string {
@@ -19,6 +17,10 @@ func (f Field) DESC() string {
 
 func (f Field) ASC() string {
 	return "`" + string(f) + "` ASC"
+}
+
+func (f Field) AS(as string) string {
+	return string(f) + " AS " + as
 }
 
 var operatorMap = map[Operator]string{
@@ -48,29 +50,30 @@ type dbrepo struct {
 
 // NewRepository
 // usage:
-//   repo := New(db)
-//   // find
-//   var users []User
-//   ctx := context.Background()
-//   err := repo.Find(ctx, &users, Role("member"), Limit(20))
-//   // join
-//   var books []struct {
-//       ID 		string `field:"books.id"`
-//       Name 		string `field:"books.name"`
-//       AuthorID 	string `field:"users.id"`
-//       AuthorName string `field:"users.name"`
-// 	 }{}
-//   func AuthorID(authorID interface{}) MatchOption {
-//   	return func(opts *MatchOptions) {
-//   		vo := reflect.ValueOf(authorID)
-//   		if vo.Kind() == reflect.Slice {
-//   			opts.IN("book.author_id", authorID)
-//   			return
-//   		}
-//   		opts.EQ("book.author_id", authorID)
-//   	}
-//   }
-//   err := repo.Find(ctx, database.M(&books, &Book{}).With(&User{}, AuthorID(Field("users.id"))), Limit(20))
+//
+//	  repo := New(db)
+//	  // find
+//	  var users []User
+//	  ctx := context.Background()
+//	  err := repo.Find(ctx, &users, Role("member"), Limit(20))
+//	  // join
+//	  var books []struct {
+//	      ID 		string `field:"books.id"`
+//	      Name 		string `field:"books.name"`
+//	      AuthorID 	string `field:"users.id"`
+//	      AuthorName string `field:"users.name"`
+//		 }{}
+//	  func AuthorID(authorID interface{}) MatchOption {
+//	  	return func(opts *MatchOptions) {
+//	  		vo := reflect.ValueOf(authorID)
+//	  		if vo.Kind() == reflect.Slice {
+//	  			opts.IN("book.author_id", authorID)
+//	  			return
+//	  		}
+//	  		opts.EQ("book.author_id", authorID)
+//	  	}
+//	  }
+//	  err := repo.Find(ctx, database.M(&books, &Book{}).With(&User{}, AuthorID(Field("users.id"))), Limit(20))
 func New(db *gorm.DB, model ...any) Repository {
 	return &dbrepo{db: db, model: func() any {
 		if len(model) > 0 {
@@ -204,23 +207,39 @@ func (repo *dbrepo) prepare(v any) (*gorm.DB, any) {
 			model.Having(condi, values...)
 		}
 	}
+	if len(m.Flds) > 0 {
+		for _, f := range m.Flds {
+			model.Select(f)
+		}
+		return model, m.Result
+	}
 	if m.Result == nil {
 		return model, nil
 	}
-	vm := reflect.ValueOf(m.Result)
-	for vm.Kind() == reflect.Slice || vm.Kind() == reflect.Array || vm.Kind() == reflect.Ptr {
-		vm = vm.Elem()
-	}
+	vm := func() reflect.Value {
+		vm := reflect.ValueOf(m.Result)
+		for {
+			switch vm.Kind() {
+			case reflect.Ptr, reflect.Interface:
+				vm = vm.Elem()
+			case reflect.Map, reflect.Slice, reflect.Array:
+				t := vm.Type().Elem()
+				for t.Kind() == reflect.Ptr || t.Kind() == reflect.Interface {
+					t = t.Elem()
+				}
+				vm = reflect.New(t)
+			default:
+				return vm
+			}
+		}
+	}()
 	if vm.Kind() != reflect.Struct {
 		return model, m.Result
 	}
-	fields := structs.Fields(m.Result)
-	fieldNames := make([]string, len(fields))
-	for j, f := range fields {
-		fieldNames[j] = fmt.Sprintf("%s AS %s", f.Tag("field"), utils.ToSnakeCase(f.Name()))
+	fields := structs.Fields(vm.Interface())
+	for _, f := range fields {
+		model.Select(fmt.Sprintf("%s AS %s", f.Tag("field"), utils.ToSnakeCase(f.Name())))
 	}
-	model.Select(fieldNames)
-
 	return model, m.Result
 }
 

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 )
 
 type Operator int
@@ -53,6 +54,7 @@ type Group struct {
 }
 
 type Model struct {
+	Flds   []string
 	Result any
 	From   any
 	Joins  []Join
@@ -65,6 +67,11 @@ func M(result interface{}, froms ...any) *Model {
 		from = froms[0]
 	}
 	return &Model{Result: result, From: from}
+}
+
+func (m *Model) Fields(fields ...string) *Model {
+	m.Flds = append(m.Flds, fields...)
+	return m
 }
 
 func (m *Model) Group(group string, having ...MatchOption) *Model {
@@ -100,6 +107,22 @@ func (m *Model) with(model any, j int, opts ...MatchOption) *Model {
 	}
 	m.Joins = append(m.Joins, mj)
 	return m
+}
+
+func MIN(field string) string {
+	return fmt.Sprintf("MIN(%s)", field)
+}
+
+func MAX(field string) string {
+	return fmt.Sprintf("MAX(%s)", field)
+}
+
+func Distinct(field string) string {
+	return fmt.Sprintf("DISTINCT %s", field)
+}
+
+func Count(field string) string {
+	return fmt.Sprintf("COUNT(%s)", field)
 }
 
 type MatchOptions struct {
