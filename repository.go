@@ -2,8 +2,11 @@ package repository
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 type Operator int
@@ -132,6 +135,25 @@ type MatchOptions struct {
 	Offset  *int
 }
 
+func (opts MatchOptions) Sum() string {
+	str := ""
+	for _, m := range opts.Matches {
+		str += fmt.Sprintf("%s%d%v", m.Field, m.Operator, m.Value)
+	}
+	sum := md5.Sum([]byte(fmt.Sprintf("%s%s%d%d", str, strings.Join(opts.Sort, ""), func() int {
+		if opts.Limit != nil {
+			return *opts.Limit
+		}
+		return 0
+	}(), func() int {
+		if opts.Offset != nil {
+			return *opts.Offset
+		}
+		return 0
+	}())))
+	return hex.EncodeToString(sum[:])
+}
+
 type MatchOption func(*MatchOptions)
 
 func (opts *MatchOptions) oper(field string, oper Operator, val interface{}) *MatchOptions {
@@ -228,4 +250,10 @@ type Repository interface {
 	Create(ctx context.Context, v any) error
 	// UpdateField field
 	UpdateFields(ctx context.Context, fields Fields, opts ...MatchOption) error
+}
+
+func Sum(opts ...MatchOption) string {
+	var opt MatchOptions
+	opt.Apply(opts...)
+	return opt.Sum()
 }

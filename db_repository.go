@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
+	"strings"
+
 	"github.com/yang-zzhong/structs"
 	"github.com/yang-zzhong/xl/utils"
 	"gorm.io/gorm"
-	"reflect"
-	"strings"
 )
 
 func (f Field) DESC() string {
@@ -208,9 +209,14 @@ func (repo *dbrepo) prepare(v any) (*gorm.DB, any) {
 		}
 	}
 	if len(m.Flds) > 0 {
-		for _, f := range m.Flds {
-			model.Select(f)
+		fields := ""
+		for i, f := range m.Flds {
+			if i > 0 {
+				fields += ","
+			}
+			fields += f
 		}
+		model.Select(fields)
 		return model, m.Result
 	}
 	if m.Result == nil {
@@ -237,9 +243,14 @@ func (repo *dbrepo) prepare(v any) (*gorm.DB, any) {
 		return model, m.Result
 	}
 	fields := structs.Fields(vm.Interface())
-	for _, f := range fields {
-		model.Select(fmt.Sprintf("%s AS %s", f.Tag("field"), utils.ToSnakeCase(f.Name())))
+	fs := ""
+	for i, f := range fields {
+		if i > 0 {
+			fs += ","
+		}
+		fs += fmt.Sprintf("%s AS %s", f.Tag("field"), utils.ToSnakeCase(f.Name()))
 	}
+	model.Select(fs)
 	return model, m.Result
 }
 
