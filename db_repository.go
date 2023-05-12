@@ -128,7 +128,7 @@ func (db *dbrepo) Create(ctx context.Context, v any) error {
 func (db *dbrepo) UpdateFields(ctx context.Context, fields Fields, opts ...MatchOption) error {
 	updator := db.db.Model(db.model)
 	db.applyOptions(updator, opts...)
-	return updator.UpdateColumns(fields).Error
+	return updator.Updates(map[string]any(fields)).Error
 }
 
 func (repo *dbrepo) tableName(v any) string {
