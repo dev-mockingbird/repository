@@ -114,8 +114,8 @@ func (svc repoCreator) createFile(f string, w func(name string, w io.Writer, val
 func (svc repoCreator) createModel(model string) error {
 	name := strcase.ToSnake(model)
 	fs := map[string]func(string, io.Writer, any) error{
-		fmt.Sprintf("%s.go", name):                 Model,
-		fmt.Sprintf("%s_repository_gorm.go", name): GormRepoImpl,
+		fmt.Sprintf("%s.go", name):      Model,
+		fmt.Sprintf("%s_repo.go", name): GormRepoImpl,
 	}
 	for f, w := range fs {
 		if err := svc.createFile(f, w, ModelValue{Package: svc.Package, Model: model}); err != nil {
