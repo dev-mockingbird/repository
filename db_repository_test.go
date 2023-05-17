@@ -36,6 +36,12 @@ func AuthorID(authorID interface{}) MatchOption {
 	}
 }
 
+func Like(name string) MatchOption {
+	return func(opts *MatchOptions) {
+		opts.LIKE("users.name", "%"+name+"%")
+	}
+}
+
 type BookWithUser struct {
 	ID         string `field:"books.id"`
 	Name       string `field:"books.name"`
@@ -150,15 +156,15 @@ func TestGormRepository_Select(t *testing.T) {
 	assert.Nil(t, err)
 	repo := New(gdb, nil)
 	func() {
-		execSql := "^SELECT COUNT\\(DISTINCT author_id\\) AS author_id FROM `books` WHERE book\\.author_id IN \\(\\?,\\?,\\?\\) GROUP BY `author_id` HAVING count\\(id\\) >= \\?$"
+		execSql := "^SELECT COUNT\\(DISTINCT author_id\\) AS author_id FROM `books` WHERE book\\.author_id IN \\(\\?,\\?,\\?\\) AND users\\.name LIKE \\? GROUP BY `author_id` HAVING count\\(id\\) >= \\?$"
 		mock.ExpectQuery(execSql).
-			WithArgs("1", "2", "3", 10).
+			WithArgs("1", "2", "3", "%hello%", 10).
 			WillReturnRows(sqlmock.NewRows([]string{"author_id", "books"}))
 	}()
 	g := []*GroupTest{}
 	model := M(&g, &Book{}).Fields(Field(Count(Distinct("author_id"))).AS("author_id")).
 		Group("author_id", func(opts *MatchOptions) { opts.GTE("count(id)", 10) })
-	err = repo.Find(context.Background(), model, AuthorID([]string{"1", "2", "3"}))
+	err = repo.Find(context.Background(), model, AuthorID([]string{"1", "2", "3"}), Like("hello"))
 	assert.Nil(t, err)
 }
 

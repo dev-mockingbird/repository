@@ -30,6 +30,8 @@ const (
 	OR
 	AND
 
+	LIKE
+
 	LeftJoin  = 0
 	InnerJoin = 1
 	RightJoin = 2
@@ -202,6 +204,10 @@ func (opts *MatchOptions) GT(field string, val any) *MatchOptions {
 
 func (opts *MatchOptions) GTE(field string, val any) *MatchOptions {
 	return opts.oper(field, GTE, val)
+}
+
+func (opts *MatchOptions) LIKE(field string, val any) *MatchOptions {
+	return opts.oper(field, LIKE, val)
 }
 
 func (opts *MatchOptions) IN(field string, val any) *MatchOptions {

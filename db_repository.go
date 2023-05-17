@@ -33,6 +33,7 @@ var operatorMap = map[Operator]string{
 	GTE:   ">=",
 	IN:    "IN",
 	NOTIN: "NOT IN",
+	LIKE:  "LIKE",
 }
 
 type tableNamer interface {
