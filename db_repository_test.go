@@ -49,6 +49,13 @@ type BookWithUser struct {
 	AuthorName string `field:"users.name"`
 }
 
+type BookWithUserWithoutFromField struct {
+	ID         string
+	Name       string
+	AuthorID   string `field:"users.id"`
+	AuthorName string `field:"users.name"`
+}
+
 type GroupTest struct {
 	AuthorID string `field:"author_id"`
 	Books    int    `field:"count(id)"`
@@ -97,6 +104,28 @@ func TestGormRepository_Join(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"id", "name", "author_id", "author_name"}))
 	}()
 	var bookWithUser BookWithUser
+	err = repo.Find(context.Background(),
+		M(&bookWithUser, &Book{}).With(&User{}, AuthorID(Field("user.id"))),
+		AuthorID([]string{"1", "2", "3"}),
+	)
+	assert.Nil(t, err)
+}
+
+func TestGormRepository_Join_without_field(t *testing.T) {
+	db, mock, err := sqlmock.New() // mock sql.DB
+	assert.Nil(t, err)
+	defer db.Close()
+	defer assert.Nil(t, mock.ExpectationsWereMet())
+	gdb, err := gorm.Open(dialector(db)) // open gorm db
+	assert.Nil(t, err)
+	repo := New(gdb, &Book{})
+	func() {
+		execSql := "^SELECT `books`\\.`id`,`books`\\.`name`,users\\.id AS author_id,users\\.name AS author_name FROM `books` LEFT JOIN users ON book\\.author_id = user\\.id WHERE book\\.author_id IN \\(\\?,\\?,\\?\\)$"
+		mock.ExpectQuery(execSql).
+			WithArgs("1", "2", "3").
+			WillReturnRows(sqlmock.NewRows([]string{"id", "name", "author_id", "author_name"}))
+	}()
+	var bookWithUser BookWithUserWithoutFromField
 	err = repo.Find(context.Background(),
 		M(&bookWithUser, &Book{}).With(&User{}, AuthorID(Field("user.id"))),
 		AuthorID([]string{"1", "2", "3"}),

@@ -245,6 +245,9 @@ func (repo *dbrepo) prepare(v any) (*gorm.DB, any) {
 	}
 	fields := structs.Fields(vm.Interface())
 	fs := ""
+	stmt := &gorm.Statement{DB: repo.db}
+	stmt.Parse(m.From)
+	tableName := stmt.Schema.Table
 	for i, f := range fields {
 		if i > 0 {
 			fs += ","
@@ -252,7 +255,7 @@ func (repo *dbrepo) prepare(v any) (*gorm.DB, any) {
 		as := utils.ToSnakeCase(f.Name())
 		field := f.Tag("field")
 		if field == "" {
-			fs += "`" + as + "`"
+			fs += "`" + tableName + "`.`" + as + "`"
 			continue
 		}
 		fs += fmt.Sprintf("%s AS %s", field, as)
