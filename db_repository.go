@@ -250,9 +250,10 @@ func (repo *dbrepo) prepare(v any) (*gorm.DB, any) {
 			fs += ","
 		}
 		as := utils.ToSnakeCase(f.Name())
-		field := as
-		if t := f.Tag("field"); t != "" {
-			field = t
+		field := f.Tag("field")
+		if field == "" {
+			fs += as
+			continue
 		}
 		fs += fmt.Sprintf("%s AS %s", field, as)
 	}
