@@ -252,7 +252,7 @@ func (repo *dbrepo) prepare(v any) (*gorm.DB, any) {
 		as := utils.ToSnakeCase(f.Name())
 		field := f.Tag("field")
 		if field == "" {
-			fs += as
+			fs += "`" + as + "`"
 			continue
 		}
 		fs += fmt.Sprintf("%s AS %s", field, as)
