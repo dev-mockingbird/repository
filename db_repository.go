@@ -249,7 +249,12 @@ func (repo *dbrepo) prepare(v any) (*gorm.DB, any) {
 		if i > 0 {
 			fs += ","
 		}
-		fs += fmt.Sprintf("%s AS %s", f.Tag("field"), utils.ToSnakeCase(f.Name()))
+		as := utils.ToSnakeCase(f.Name())
+		field := as
+		if t := f.Tag("field"); t != "" {
+			field = t
+		}
+		fs += fmt.Sprintf("%s AS %s", field, as)
 	}
 	model.Select(fs)
 	return model, m.Result
