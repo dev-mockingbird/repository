@@ -29,10 +29,10 @@ func AuthorID(authorID interface{}) MatchOption {
 	return func(opts *MatchOptions) {
 		vo := reflect.ValueOf(authorID)
 		if vo.Kind() == reflect.Slice {
-			opts.IN("book.author_id", authorID)
+			opts.IN("books.author_id", authorID)
 			return
 		}
-		opts.EQ("book.author_id", authorID)
+		opts.EQ("books.author_id", authorID)
 	}
 }
 
@@ -98,14 +98,14 @@ func TestGormRepository_Join(t *testing.T) {
 	assert.Nil(t, err)
 	repo := New(gdb, &Book{})
 	func() {
-		execSql := "^SELECT books\\.id AS id,books\\.name AS name,users\\.id AS author_id,users\\.name AS author_name FROM `books` LEFT JOIN users ON book\\.author_id = user\\.id WHERE book\\.author_id IN \\(\\?,\\?,\\?\\)$"
+		execSql := "^SELECT books\\.id AS id,books\\.name AS name,users\\.id AS author_id,users\\.name AS author_name FROM `books` LEFT JOIN users ON books\\.author_id = users\\.id WHERE books\\.author_id IN \\(\\?,\\?,\\?\\)$"
 		mock.ExpectQuery(execSql).
 			WithArgs("1", "2", "3").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "name", "author_id", "author_name"}))
 	}()
 	var bookWithUser BookWithUser
 	err = repo.Find(context.Background(),
-		M(&bookWithUser, &Book{}).With(&User{}, AuthorID(Field("user.id"))),
+		M(&bookWithUser, &Book{}).With(&User{}, AuthorID(Field("users.id"))),
 		AuthorID([]string{"1", "2", "3"}),
 	)
 	assert.Nil(t, err)
@@ -120,14 +120,14 @@ func TestGormRepository_Join_without_field(t *testing.T) {
 	assert.Nil(t, err)
 	repo := New(gdb, &Book{})
 	func() {
-		execSql := "^SELECT `books`\\.`id`,`books`\\.`name`,users\\.id AS author_id,users\\.name AS author_name FROM `books` LEFT JOIN users ON book\\.author_id = user\\.id WHERE book\\.author_id IN \\(\\?,\\?,\\?\\)$"
+		execSql := "^SELECT `books`\\.`id`,`books`\\.`name`,users\\.id AS author_id,users\\.name AS author_name FROM `books` LEFT JOIN users ON books\\.author_id = users\\.id WHERE books\\.author_id IN \\(\\?,\\?,\\?\\)$"
 		mock.ExpectQuery(execSql).
 			WithArgs("1", "2", "3").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "name", "author_id", "author_name"}))
 	}()
 	var bookWithUser BookWithUserWithoutFromField
 	err = repo.Find(context.Background(),
-		M(&bookWithUser, &Book{}).With(&User{}, AuthorID(Field("user.id"))),
+		M(&bookWithUser, &Book{}).With(&User{}, AuthorID(Field("users.id"))),
 		AuthorID([]string{"1", "2", "3"}),
 	)
 	assert.Nil(t, err)
@@ -142,7 +142,7 @@ func TestGormRepository_Group(t *testing.T) {
 	assert.Nil(t, err)
 	repo := New(gdb, nil)
 	func() {
-		execSql := "^SELECT author_id AS author_id,count\\(id\\) AS books FROM `books` WHERE book\\.author_id IN \\(\\?,\\?,\\?\\) GROUP BY `author_id` HAVING count\\(id\\) >= \\?$"
+		execSql := "^SELECT author_id AS author_id,count\\(id\\) AS books FROM `books` WHERE books\\.author_id IN \\(\\?,\\?,\\?\\) GROUP BY `author_id` HAVING count\\(id\\) >= \\?$"
 		mock.ExpectQuery(execSql).
 			WithArgs("1", "2", "3", 10).
 			WillReturnRows(sqlmock.NewRows([]string{"author_id", "books"}))
@@ -164,7 +164,7 @@ func TestGormRepository_Panic(t *testing.T) {
 	assert.Nil(t, err)
 	repo := New(gdb, nil)
 	func() {
-		execSql := "^SELECT author_id AS author_id,count\\(id\\) AS books FROM `books` WHERE book\\.author_id IN \\(\\?,\\?,\\?\\) GROUP BY `author_id` HAVING count\\(id\\) >= \\?$"
+		execSql := "^SELECT author_id AS author_id,count\\(id\\) AS books FROM `books` WHERE books\\.author_id IN \\(\\?,\\?,\\?\\) GROUP BY `author_id` HAVING count\\(id\\) >= \\?$"
 		mock.ExpectQuery(execSql).
 			WithArgs("1", "2", "3", 10).
 			WillReturnRows(sqlmock.NewRows([]string{"author_id", "books"}))
@@ -185,7 +185,7 @@ func TestGormRepository_Select(t *testing.T) {
 	assert.Nil(t, err)
 	repo := New(gdb, nil)
 	func() {
-		execSql := "^SELECT COUNT\\(DISTINCT author_id\\) AS author_id FROM `books` WHERE book\\.author_id IN \\(\\?,\\?,\\?\\) AND users\\.name LIKE \\? GROUP BY `author_id` HAVING count\\(id\\) >= \\?$"
+		execSql := "^SELECT COUNT\\(DISTINCT author_id\\) AS author_id FROM `books` WHERE books\\.author_id IN \\(\\?,\\?,\\?\\) AND users\\.name LIKE \\? GROUP BY `author_id` HAVING count\\(id\\) >= \\?$"
 		mock.ExpectQuery(execSql).
 			WithArgs("1", "2", "3", "%hello%", 10).
 			WillReturnRows(sqlmock.NewRows([]string{"author_id", "books"}))
@@ -207,7 +207,7 @@ func TestGormRepository_Updates(t *testing.T) {
 	repo := New(gdb, &Book{})
 	func() {
 		mock.ExpectBegin()
-		execSql := "^UPDATE `books` SET `id`=\\? WHERE book.author_id IN \\(\\?,\\?,\\?\\)$"
+		execSql := "^UPDATE `books` SET `id`=\\? WHERE books.author_id IN \\(\\?,\\?,\\?\\)$"
 		mock.ExpectExec(execSql).
 			WithArgs("hello", "1", "2", "3").WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()

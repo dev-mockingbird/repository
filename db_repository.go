@@ -13,11 +13,11 @@ import (
 )
 
 func (f Field) DESC() string {
-	return "`" + string(f) + "` DESC"
+	return string(f) + " DESC"
 }
 
 func (f Field) ASC() string {
-	return "`" + string(f) + "` ASC"
+	return string(f) + " ASC"
 }
 
 func (f Field) AS(as string) string {
