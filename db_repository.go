@@ -188,7 +188,7 @@ func (repo *dbrepo) compileMatchOptions(opts MatchOptions) (string, []interface{
 func (repo *dbrepo) prepare(v any) (*gorm.DB, any) {
 	m, ok := v.(*Model)
 	if !ok {
-		return repo.db.Model(v), v
+		return repo.db.Model(repo.model), v
 	}
 	model := repo.db.Model(m.From)
 	for _, join := range m.Joins {
