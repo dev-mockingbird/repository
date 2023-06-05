@@ -106,10 +106,14 @@ func (db *dbrepo) transformError(err error) error {
 }
 
 // db.Count(ctx, database.M(result, &User{}))
-func (db *dbrepo) Count(ctx context.Context, result *int64, opts ...MatchOption) error {
-	selector, _ := db.prepare(db.model)
+func (db *dbrepo) Count(ctx context.Context, v any, opts ...MatchOption) error {
+	selector, result := db.prepare(v)
+	count, ok := result.(*int64)
+	if !ok {
+		return errors.New("count only support *int64 as result")
+	}
 	db.applyOptions(selector, opts...)
-	return db.transformError(selector.Count(result).Error)
+	return db.transformError(selector.Count(count).Error)
 }
 
 func (db *dbrepo) Update(ctx context.Context, v any) error {

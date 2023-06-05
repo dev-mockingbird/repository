@@ -247,7 +247,7 @@ type Repository interface {
 	// Find record following the match condition
 	Find(ctx context.Context, v any, opts ...MatchOption) error
 	// Count record following the match condition
-	Count(ctx context.Context, count *int64, opts ...MatchOption) error
+	Count(ctx context.Context, count any, opts ...MatchOption) error
 	// Update a record
 	Update(ctx context.Context, v any) error
 	// Delete record following the match condition

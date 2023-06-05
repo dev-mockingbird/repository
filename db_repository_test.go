@@ -111,6 +111,28 @@ func TestGormRepository_Join(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestGormRepository_JoinCount(t *testing.T) {
+	db, mock, err := sqlmock.New() // mock sql.DB
+	assert.Nil(t, err)
+	defer db.Close()
+	defer assert.Nil(t, mock.ExpectationsWereMet())
+	gdb, err := gorm.Open(dialector(db)) // open gorm db
+	assert.Nil(t, err)
+	repo := New(gdb, &Book{})
+	func() {
+		execSql := "^SELECT count\\(\\*\\) FROM `books` LEFT JOIN users ON books\\.author_id = users\\.id WHERE books\\.author_id IN \\(\\?,\\?,\\?\\)$"
+		mock.ExpectQuery(execSql).
+			WithArgs("1", "2", "3").
+			WillReturnRows(sqlmock.NewRows([]string{"id", "name", "author_id", "author_name"}))
+	}()
+	var count int64
+	err = repo.Count(context.Background(),
+		M(&count, &Book{}).With(&User{}, AuthorID(Field("users.id"))),
+		AuthorID([]string{"1", "2", "3"}),
+	)
+	assert.Nil(t, err)
+}
+
 func TestGormRepository_Join_without_field(t *testing.T) {
 	db, mock, err := sqlmock.New() // mock sql.DB
 	assert.Nil(t, err)
