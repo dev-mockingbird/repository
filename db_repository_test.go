@@ -42,6 +42,16 @@ func Like(name string) MatchOption {
 	}
 }
 
+func Or(name string) MatchOption {
+	return func(opts *MatchOptions) {
+		opts.Quote(func(opts *MatchOptions) {
+			opts.LIKE("user.name", "%"+name+"%").OR(func(opts *MatchOptions) {
+				opts.LIKE("books.name", "%"+name+"%")
+			})
+		})
+	}
+}
+
 type BookWithUser struct {
 	ID         string `field:"books.id"`
 	Name       string `field:"books.name"`
@@ -195,6 +205,25 @@ func TestGormRepository_Panic(t *testing.T) {
 	model := M(&g, &Book{}). // .Fields(Field(Distinct("author_id")).AS("author_id")).
 					Group("author_id", func(opts *MatchOptions) { opts.GTE("count(id)", 10) })
 	err = repo.Find(context.Background(), model, AuthorID([]string{"1", "2", "3"}))
+	assert.Nil(t, err)
+}
+
+func TestOr(t *testing.T) {
+	db, mock, err := sqlmock.New() // mock sql.DB
+	assert.Nil(t, err)
+	defer db.Close()
+	defer assert.Nil(t, mock.ExpectationsWereMet())
+	gdb, err := gorm.Open(dialector(db)) // open gorm db
+	assert.Nil(t, err)
+	repo := New(gdb, nil)
+	func() {
+		execSql := "^SELECT \\* FROM `books` WHERE books\\.author_id IN \\(\\?,\\?,\\?\\) AND \\(user\\.name LIKE \\? OR books\\.name LIKE \\?\\)$"
+		mock.ExpectQuery(execSql).
+			WithArgs("1", "2", "3", "%hello%", "%hello%").
+			WillReturnRows(sqlmock.NewRows([]string{"author_id", "books"}))
+	}()
+	result := []*Book{}
+	err = repo.Find(context.Background(), &result, AuthorID([]string{"1", "2", "3"}), Or("hello"))
 	assert.Nil(t, err)
 }
 

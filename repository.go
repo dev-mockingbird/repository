@@ -27,6 +27,8 @@ const (
 	NULL
 	NOTNULL
 
+	Quote
+
 	OR
 	AND
 
@@ -172,13 +174,23 @@ func (opts *MatchOptions) Apply(newOptions ...MatchOption) MatchOptions {
 	return *opts
 }
 
-func (opts *MatchOptions) OR(sub MatchOptions) *MatchOptions {
-	opts.Matches = append(opts.Matches, MatchItem{Operator: OR, Value: sub})
+func (opts *MatchOptions) OR(options ...MatchOption) *MatchOptions {
+	var o MatchOptions
+	o.Apply(options...)
+	opts.Matches = append(opts.Matches, MatchItem{Operator: OR, Value: o})
 	return opts
 }
 
-func (opts *MatchOptions) AND(sub MatchOptions) *MatchOptions {
-	opts.Matches = append(opts.Matches, MatchItem{Operator: AND, Value: sub})
+func (opts *MatchOptions) Quote(options ...MatchOption) {
+	var o MatchOptions
+	o.Apply(options...)
+	opts.Matches = append(opts.Matches, MatchItem{Operator: Quote, Value: o})
+}
+
+func (opts *MatchOptions) AND(sub ...MatchOption) *MatchOptions {
+	var o MatchOptions
+	o.Apply(sub...)
+	opts.Matches = append(opts.Matches, MatchItem{Operator: AND, Value: o})
 	return opts
 }
 

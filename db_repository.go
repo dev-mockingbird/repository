@@ -164,11 +164,15 @@ func (repo *dbrepo) compileMatchOptions(opts MatchOptions) (string, []interface{
 			ret += fmt.Sprintf("%s IS NULL", opt.Field)
 		case OR:
 			str, subValues := repo.compileMatchOptions(opt.Value.(MatchOptions))
-			ret += fmt.Sprintf(" OR (%s)", str)
+			ret += fmt.Sprintf(" OR %s", str)
 			values = append(values, subValues...)
 		case AND:
 			str, subValues := repo.compileMatchOptions(opt.Value.(MatchOptions))
-			ret += fmt.Sprintf(" AND (%s)", str)
+			ret += fmt.Sprintf(" AND %s", str)
+			values = append(values, subValues...)
+		case Quote:
+			str, subValues := repo.compileMatchOptions(opt.Value.(MatchOptions))
+			ret += fmt.Sprintf("(%s)", str)
 			values = append(values, subValues...)
 		default:
 			if i > 0 {
@@ -278,11 +282,14 @@ func (repo *dbrepo) applyOptions(db *gorm.DB, opts ...MatchOption) {
 		case NOTNULL:
 			db.Where(fmt.Sprintf("%s IS NOT NULL", match.Field))
 		case OR:
-			str, values := repo.compileMatchOptions(*match.Value.(*MatchOptions))
-			db.Where(fmt.Sprintf("OR (%s)", str), values...)
+			str, values := repo.compileMatchOptions(match.Value.(MatchOptions))
+			db.Or(str, values...)
+		case Quote:
+			str, values := repo.compileMatchOptions(match.Value.(MatchOptions))
+			db.Where(str, values...)
 		case AND:
-			str, values := repo.compileMatchOptions(*match.Value.(*MatchOptions))
-			db.Where(fmt.Sprintf("AND (%s)", str), values...)
+			str, values := repo.compileMatchOptions(match.Value.(MatchOptions))
+			db.Where(str, values...)
 		default:
 			db.Where(fmt.Sprintf("%s %s ?", match.Field, operatorMap[match.Operator]), match.Value)
 		}
