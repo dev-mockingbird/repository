@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
 type Operator int
@@ -253,6 +254,11 @@ func (opts *MatchOptions) SetSort(sort ...string) *MatchOptions {
 	return opts
 }
 
+type DeletedAt struct {
+	Id        string     `json:"id" gorm:"column:id"`
+	DeletedAt *time.Time `json:"deleted_at" gorm:"column:deleted_at"`
+}
+
 type Repository interface {
 	// First get the first record of the records which fetched from the DB alongside the match condition
 	First(ctx context.Context, v any, opts ...MatchOption) error
@@ -268,6 +274,8 @@ type Repository interface {
 	Create(ctx context.Context, v any) error
 	// UpdateField field
 	UpdateFields(ctx context.Context, fields Fields, opts ...MatchOption) error
+	// DeletedAfter
+	DeletedAfter(ctx context.Context, after *time.Time, deleted *[]*DeletedAt) error
 }
 
 func Sum(opts ...MatchOption) string {

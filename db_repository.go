@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/yang-zzhong/structs"
 	"github.com/yang-zzhong/xl/utils"
@@ -89,7 +90,6 @@ func (db *dbrepo) First(ctx context.Context, v any, opts ...MatchOption) error {
 	selector, result := db.prepare(v)
 	db.applyOptions(selector, opts...)
 	return db.transformError(selector.First(result).Error)
-
 }
 
 func (db *dbrepo) Find(ctx context.Context, v any, opts ...MatchOption) error {
@@ -124,6 +124,14 @@ func (db *dbrepo) Delete(ctx context.Context, opts ...MatchOption) error {
 	deletor := db.db.Model(db.model)
 	db.applyOptions(deletor, opts...)
 	return db.transformError(deletor.Delete(db.model).Error)
+}
+
+func (db *dbrepo) DeletedAfter(ctx context.Context, after *time.Time, deleted *[]*DeletedAt) error {
+	deletor := db.db.Model(db.model).Unscoped().Select("id, deleted_at")
+	if after != nil {
+		return deletor.Where("deleted_at > ?", after).Find(deleted).Error
+	}
+	return deletor.Where("deleted_at IS NOT NULL").Find(deleted).Error
 }
 
 func (db *dbrepo) Create(ctx context.Context, v any) error {
