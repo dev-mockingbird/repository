@@ -121,23 +121,6 @@ func TestGormRepository_Join(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestGormRepository_DeletedAfter(t *testing.T) {
-	db, mock, err := sqlmock.New() // mock sql.DB
-	assert.Nil(t, err)
-	defer db.Close()
-	defer assert.Nil(t, mock.ExpectationsWereMet())
-	gdb, err := gorm.Open(dialector(db)) // open gorm db
-	assert.Nil(t, err)
-	repo := New(gdb, &Book{})
-	func() {
-		execSql := "^SELECT id, deleted_at FROM `books` WHERE deleted_at is NOT NULL$"
-		mock.ExpectQuery(execSql).WillReturnRows(sqlmock.NewRows([]string{"id", "deleted_at"}))
-	}()
-	var deleted *[]*DeletedAt
-	repo.DeletedAfter(context.Background(), nil, deleted)
-	assert.Nil(t, err)
-}
-
 func TestGormRepository_JoinCount(t *testing.T) {
 	db, mock, err := sqlmock.New() // mock sql.DB
 	assert.Nil(t, err)

@@ -8,12 +8,25 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type Operator int
 
 var (
 	ErrRecordNotFound = errors.New("record not found")
+)
+
+const (
+	BeforeCreate = iota
+	AfterCreate
+	BeforeUpdate
+	AfterUpdate
+	BeforeDelete
+	AfterDelete
+	BeforeSave
+	AfterSave
 )
 
 const (
@@ -274,8 +287,8 @@ type Repository interface {
 	Create(ctx context.Context, v any) error
 	// UpdateField field
 	UpdateFields(ctx context.Context, fields Fields, opts ...MatchOption) error
-	// DeletedAfter
-	DeletedAfter(ctx context.Context, after *time.Time, deleted *[]*DeletedAt) error
+	// Hook
+	Hook(oper int, callback func(tx *gorm.DB) error)
 }
 
 func Sum(opts ...MatchOption) string {
