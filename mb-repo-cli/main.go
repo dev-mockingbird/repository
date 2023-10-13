@@ -162,6 +162,7 @@ import (
 )
 
 type {{.Model}} struct {
+	*repository.WithHook
 	Id 		  string __tag__json:"id" gorm:"primaryKey"__tag__
 	// DeletedAt soft delete, Repository.DeletedAfter will use this
 	DeletedAt gorm.DeletedAt
