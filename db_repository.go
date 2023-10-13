@@ -20,7 +20,7 @@ type WithHook struct {
 	hooks map[int][]func(tx *gorm.DB) error
 }
 
-func (m *WithHook) RegisterHooks(hooks map[int][]func(tx *gorm.DB) error) {
+func (m *WithHook) WithHooks(hooks map[int][]func(tx *gorm.DB) error) {
 	m.hooks = hooks
 }
 

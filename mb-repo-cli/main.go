@@ -156,7 +156,6 @@ func Model(name string, w io.Writer, val any) error {
 	return template.Must(t.Parse(strings.ReplaceAll(`package {{.Package}}
 
 import (
-	"time"
 	"context"
 	"github.com/dev-mockingbird/repository"
 	"gorm.io/gorm"
@@ -190,8 +189,8 @@ type {{.Model}}Repository interface {
 	Count(ctx context.Context, count *int64, opts ...repository.MatchOption) error
 	// Create create items in repository
 	Create(ctx context.Context, chs ...*{{.Model}}) error
-	// DeletedAt
-	DeletedAfter(ctx context.Context, after *time.Time, deleted *[]*repository.DeletedAt) error
+	// Hook
+	Hook(int, func(tx *gorm.DB) error)
 }
 
 // Get{{.Model}}Repository get the repository and match instance
@@ -211,7 +210,6 @@ func GormRepoImpl(name string, w io.Writer, val any) error {
 	return template.Must(t.Parse(`package {{.Package}}
 
 import (
-	"time"
 	"context"
 	"github.com/dev-mockingbird/repository"
 	"gorm.io/gorm"
@@ -219,6 +217,7 @@ import (
 
 type gorm{{.Model}}Repository struct {
 	db *gorm.DB
+	repo repository.Repository
 }
 
 type gorm{{.Model}}Match struct {}
@@ -248,39 +247,38 @@ func Gorm{{.Model}}Match() {{.Model}}Match {
 var _ {{.Model}}Repository = &gorm{{.Model}}Repository{}
 
 func NewGorm{{.Model}}Repository(db *gorm.DB) {{.Model}}Repository {
-	return &gorm{{.Model}}Repository{db: db}
+	return &gorm{{.Model}}Repository{db: db, repo: repository.New(db, &{{.Model}}{})}
 }
 
 func (s *gorm{{.Model}}Repository) Create(ctx context.Context, chs ...*{{.Model}}) error {
-	return repository.New(s.db).Create(ctx, chs)
+	return s.repo.Create(ctx, chs)
 }
 
 func (s *gorm{{.Model}}Repository) Count(ctx context.Context, count *int64, opts ...repository.MatchOption) error {
-	return repository.New(s.db, &{{.Model}}{}).Count(ctx, count, opts...)
+	return s.repo.Count(ctx, count, opts...)
 }
 
 func (s *gorm{{.Model}}Repository) Find(ctx context.Context, chs *[]*{{.Model}}, opts ...repository.MatchOption) error {
-	return repository.New(s.db).Find(ctx, chs, opts...)
+	return s.repo.Find(ctx, chs, opts...)
 }
 
 func (s *gorm{{.Model}}Repository) First(ctx context.Context, ch *{{.Model}}, opts ...repository.MatchOption) error {
-	return repository.New(s.db).First(ctx, ch, opts...)
+	return s.repo.First(ctx, ch, opts...)
 }
 
 func (s *gorm{{.Model}}Repository) Delete(ctx context.Context, opts ...repository.MatchOption) error {
-	return repository.New(s.db, &{{.Model}}{}).Delete(ctx, opts...)
+	return s.repo.Delete(ctx, opts...)
 }
 
 func (s *gorm{{.Model}}Repository) UpdateFields(ctx context.Context, fields repository.Fields, opts ...repository.MatchOption) error {
-	return repository.New(s.db, &{{.Model}}{}).UpdateFields(ctx, fields, opts...)
+	return s.repo.UpdateFields(ctx, fields, opts...)
 }
 
-
-func (s *gorm{{.Model}}Repository) DeletedAfter(ctx context.Context, after *time.Time, deleted *[]*repository.DeletedAt) error {
-	return repository.New(s.db, &{{.Model}}{}).DeletedAfter(ctx, after, deleted)
+func (s *gorm{{.Model}}Repository) Hook(o int, callback func(tx *gorm.DB) error) {
+	s.repo.Hook(o, callback)
 }
 
 func (s *gorm{{.Model}}Repository) Update(ctx context.Context, v *{{.Model}}) error {
-	return repository.New(s.db, &{{.Model}}{}).Update(ctx, v)
+	return s.repo.Update(ctx, v)
 }`)).Execute(w, val)
 }
