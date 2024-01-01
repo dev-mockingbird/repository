@@ -162,7 +162,6 @@ import (
 )
 
 type {{.Model}} struct {
-	*repository.WithHook
 	Id 		  string __tag__json:"id" gorm:"primaryKey"__tag__
 	// DeletedAt soft delete, Repository.DeletedAfter will use this
 	DeletedAt gorm.DeletedAt
@@ -190,8 +189,6 @@ type {{.Model}}Repository interface {
 	Count(ctx context.Context, count *int64, opts ...repository.MatchOption) error
 	// Create create items in repository
 	Create(ctx context.Context, chs ...*{{.Model}}) error
-	// Hook
-	Hook(int, func(tx *gorm.DB) error)
 }
 
 // Get{{.Model}}Repository get the repository and match instance
@@ -273,10 +270,6 @@ func (s *gorm{{.Model}}Repository) Delete(ctx context.Context, opts ...repositor
 
 func (s *gorm{{.Model}}Repository) UpdateFields(ctx context.Context, fields repository.Fields, opts ...repository.MatchOption) error {
 	return s.repo.UpdateFields(ctx, fields, opts...)
-}
-
-func (s *gorm{{.Model}}Repository) Hook(o int, callback func(tx *gorm.DB) error) {
-	s.repo.Hook(o, callback)
 }
 
 func (s *gorm{{.Model}}Repository) Update(ctx context.Context, v *{{.Model}}) error {

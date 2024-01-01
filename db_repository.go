@@ -12,59 +12,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type HookWither interface {
-	WithHooks(hooks map[int][]func(tx *gorm.DB) error)
-}
-
-type WithHook struct {
-	hooks map[int][]func(tx *gorm.DB) error
-}
-
-func (m *WithHook) WithHooks(hooks map[int][]func(tx *gorm.DB) error) {
-	m.hooks = hooks
-}
-
-func (m WithHook) BeforeCreate(tx *gorm.DB) error {
-	return m.call(BeforeCreate, tx)
-}
-
-func (m WithHook) AfterCreate(tx *gorm.DB) error {
-	return m.call(AfterCreate, tx)
-}
-
-func (m WithHook) BeforeUpdate(tx *gorm.DB) error {
-	return m.call(BeforeUpdate, tx)
-}
-
-func (m WithHook) AfterUpdate(tx *gorm.DB) error {
-	return m.call(AfterUpdate, tx)
-}
-
-func (m WithHook) BeforeDelete(tx *gorm.DB) error {
-	return m.call(BeforeDelete, tx)
-}
-
-func (m WithHook) AfterDelete(tx *gorm.DB) error {
-	return m.call(AfterDelete, tx)
-}
-
-func (m WithHook) BeforeSave(tx *gorm.DB) error {
-	return m.call(BeforeSave, tx)
-}
-
-func (m WithHook) AfterSave(tx *gorm.DB) error {
-	return m.call(AfterSave, tx)
-}
-
-func (m WithHook) call(h int, tx *gorm.DB) error {
-	for _, hook := range m.hooks[h] {
-		if err := hook(tx); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (f Field) DESC() string {
 	return string(f) + " DESC"
 }
@@ -139,14 +86,6 @@ func New(db *gorm.DB, model ...any) Repository {
 	}()}
 }
 
-func (db *dbrepo) Hook(oper int, v func(tx *gorm.DB) error) {
-	if _, ok := db.hooks[oper]; ok {
-		db.hooks[oper] = append(db.hooks[oper], v)
-		return
-	}
-	db.hooks[oper] = []func(tx *gorm.DB) error{v}
-}
-
 func (db *dbrepo) First(ctx context.Context, v any, opts ...MatchOption) error {
 	selector, result := db.prepare(v)
 	db.applyOptions(selector, opts...)
@@ -178,25 +117,16 @@ func (db *dbrepo) Count(ctx context.Context, v any, opts ...MatchOption) error {
 }
 
 func (db *dbrepo) Update(ctx context.Context, v any) error {
-	if hookWither, ok := db.model.(HookWither); ok {
-		hookWither.WithHooks(db.hooks)
-	}
 	return db.transformError(db.db.Save(v).Error)
 }
 
 func (db *dbrepo) Delete(ctx context.Context, opts ...MatchOption) error {
-	if hookWither, ok := db.model.(HookWither); ok {
-		hookWither.WithHooks(db.hooks)
-	}
 	deletor := db.db.Model(db.model)
 	db.applyOptions(deletor, opts...)
 	return db.transformError(deletor.Delete(db.model).Error)
 }
 
 func (db *dbrepo) Create(ctx context.Context, v any) error {
-	if hookWither, ok := db.model.(HookWither); ok {
-		hookWither.WithHooks(db.hooks)
-	}
 	return db.transformError(db.db.Create(v).Error)
 }
 
@@ -333,7 +263,7 @@ func (repo *dbrepo) prepare(v any) (*gorm.DB, any) {
 		as := utils.ToSnakeCase(f.Name())
 		field := f.Tag("field")
 		if field == "" {
-			fs += "`" + tableName + "`.`" + as + "`"
+			fs += stmt.Quote(tableName) + "." + stmt.Quote(as)
 			continue
 		}
 		fs += fmt.Sprintf("%s AS %s", field, as)

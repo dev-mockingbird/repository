@@ -5,25 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 type Operator int
 
 var (
 	ErrRecordNotFound = errors.New("record not found")
-)
-
-const (
-	BeforeCreate = iota
-	AfterCreate
-	BeforeUpdate
-	AfterUpdate
-	BeforeDelete
-	AfterDelete
-	BeforeUpdateFields
-	AfterUpdateFields
 )
 
 const (
@@ -168,6 +155,4 @@ type Repository interface {
 	Create(ctx context.Context, v any) error
 	// UpdateField field
 	UpdateFields(ctx context.Context, fields Fields, opts ...MatchOption) error
-	// Hook
-	Hook(oper int, callback func(m ChangeData, tx *gorm.DB) error)
 }
