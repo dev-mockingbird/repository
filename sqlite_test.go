@@ -21,7 +21,7 @@ func TestSqlite_test(t *testing.T) {
 	var bookWithUser BookWithUserWithoutFromField
 	repo := New(db, &Book{})
 	err = repo.Find(context.Background(),
-		M(&bookWithUser, &Book{}).With(&User{}, AuthorID(Field("users.id"))),
+		GetModel(&bookWithUser, &Book{}).With(&User{}, AuthorID(Field("users.id"))),
 		AuthorID([]string{"1", "2", "3"}),
 	)
 	if err != nil {

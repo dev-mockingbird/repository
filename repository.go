@@ -43,30 +43,95 @@ type MatchItem struct {
 	Value    any
 }
 
-type Field string
+type field struct {
+	Field any
+	as    string
+	desc  bool
+	asc   bool
+}
+
+type Func struct {
+	Template string
+	Field    []any
+}
+
+func Field(fld any) field {
+	return field{Field: fld}
+}
+
+func (f field) DESC() field {
+	f.desc = true
+	return f
+}
+
+func (f field) ASC() field {
+	f.asc = true
+	return f
+}
+
+func (f field) AS(as string) field {
+	f.as = as
+	return f
+}
+
+func (f *field) String(schema Schema) string {
+	var ret string
+	switch vl := f.Field.(type) {
+	case Func:
+		ret = vl.String(schema)
+	case field:
+		ret = vl.String(schema)
+	case string:
+		ret = schema.Quote(vl)
+	}
+	if f.as != "" {
+		ret += " AS " + f.as
+		return ret
+	} else if f.asc {
+		ret += " ASC"
+	} else if f.desc {
+		ret += " DESC"
+	}
+	return ret
+}
+
+func (f Func) String(schema Schema) string {
+	var args []any
+	for _, fi := range f.Field {
+		switch vl := fi.(type) {
+		case Func:
+			args = append(args, vl.String(schema))
+		case field:
+			args = append(args, vl.String(schema))
+		case string:
+			args = append(args, vl)
+		}
+	}
+	return fmt.Sprintf(f.Template, args...)
+}
 
 type Fields map[string]any
 
 type Join struct {
 	Model any
-	Opts  MatchOptions
+	Opts  []MatchOption
 	Type  int
 }
 
 type Group struct {
 	By     string
-	Having *MatchOptions
+	Having []MatchOption
 }
 
 type Model struct {
-	Flds   []string
+	Flds   []any
 	Result any
 	From   any
 	Joins  []Join
 	Grp    *Group
 }
 
-func M(result interface{}, froms ...any) *Model {
+func GetModel(result interface{}, froms ...any) *Model {
 	from := result
 	if len(froms) > 0 {
 		from = froms[0]
@@ -74,19 +139,13 @@ func M(result interface{}, froms ...any) *Model {
 	return &Model{Result: result, From: from}
 }
 
-func (m *Model) Fields(fields ...string) *Model {
+func (m *Model) Fields(fields ...any) *Model {
 	m.Flds = append(m.Flds, fields...)
 	return m
 }
 
 func (m *Model) Group(group string, having ...MatchOption) *Model {
-	m.Grp = &Group{By: group}
-	if len(having) > 0 {
-		m.Grp.Having = &MatchOptions{}
-		for _, apply := range having {
-			apply(m.Grp.Having)
-		}
-	}
+	m.Grp = &Group{By: group, Having: having}
 	return m
 }
 
@@ -106,28 +165,26 @@ func (m *Model) with(model any, j int, opts ...MatchOption) *Model {
 	mj := Join{
 		Model: model,
 		Type:  j,
-	}
-	for _, apply := range opts {
-		apply(&mj.Opts)
+		Opts:  opts,
 	}
 	m.Joins = append(m.Joins, mj)
 	return m
 }
 
-func MIN(field string) string {
-	return fmt.Sprintf("MIN(%s)", field)
+func MIN(field any) Func {
+	return Func{Template: "MIN(%s)", Field: []any{field}}
 }
 
-func MAX(field string) string {
-	return fmt.Sprintf("MAX(%s)", field)
+func MAX(field any) Func {
+	return Func{Template: "MAX(%s)", Field: []any{field}}
 }
 
-func Distinct(field string) string {
-	return fmt.Sprintf("DISTINCT %s", field)
+func Distinct(field any) Func {
+	return Func{Template: "DISTINCT %s", Field: []any{field}}
 }
 
-func Count(field string) string {
-	return fmt.Sprintf("COUNT(%s)", field)
+func Count(field any) Func {
+	return Func{Template: "COUNT(%s)", Field: []any{field}}
 }
 
 type DeletedAt struct {
@@ -138,6 +195,10 @@ type DeletedAt struct {
 type ChangeData struct {
 	Model string
 	Data  any
+}
+
+type TableSetter interface {
+	SetTable(table string)
 }
 
 type Repository interface {

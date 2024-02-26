@@ -16,6 +16,7 @@ type MatchOptions struct {
 	Sort    []string
 	Limit   *int
 	Offset  *int
+	schema  Schema
 }
 
 func (opts MatchOptions) Sum() string {
@@ -37,7 +38,12 @@ func (opts MatchOptions) Sum() string {
 	return hex.EncodeToString(sum[:])
 }
 
-type MatchOption func(*MatchOptions)
+type Schema interface {
+	Quote(field string) string
+	Field(field string) string
+}
+
+type MatchOption func(opts *MatchOptions, schema Schema)
 
 func (opts *MatchOptions) oper(field string, oper Operator, val interface{}) *MatchOptions {
 	opts.Matches = append(opts.Matches, MatchItem{
@@ -48,28 +54,22 @@ func (opts *MatchOptions) oper(field string, oper Operator, val interface{}) *Ma
 
 func (opts *MatchOptions) Apply(newOptions ...MatchOption) MatchOptions {
 	for _, n := range newOptions {
-		n(opts)
+		n(opts, opts.schema)
 	}
 	return *opts
 }
 
 func (opts *MatchOptions) OR(options ...MatchOption) *MatchOptions {
-	var o MatchOptions
-	o.Apply(options...)
-	opts.Matches = append(opts.Matches, MatchItem{Operator: OR, Value: o})
+	opts.Matches = append(opts.Matches, MatchItem{Operator: OR, Value: options})
 	return opts
 }
 
 func (opts *MatchOptions) Quote(options ...MatchOption) {
-	var o MatchOptions
-	o.Apply(options...)
-	opts.Matches = append(opts.Matches, MatchItem{Operator: Quote, Value: o})
+	opts.Matches = append(opts.Matches, MatchItem{Operator: Quote, Value: options})
 }
 
 func (opts *MatchOptions) AND(sub ...MatchOption) *MatchOptions {
-	var o MatchOptions
-	o.Apply(sub...)
-	opts.Matches = append(opts.Matches, MatchItem{Operator: AND, Value: o})
+	opts.Matches = append(opts.Matches, MatchItem{Operator: AND, Value: sub})
 	return opts
 }
 
