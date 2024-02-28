@@ -286,11 +286,14 @@ func TestGormRepository_Updates(t *testing.T) {
 	repo := New(gdb, &Book{})
 	func() {
 		mock.ExpectBegin()
-		execSql := "^UPDATE `books` SET `id`=\\? WHERE `books`.`author_id` IN \\(\\?,\\?,\\?\\)$"
+		execSql := "^UPDATE `books_hello_world` SET `id`=\\? WHERE `books_hello_world`.`author_id` IN \\(\\?,\\?,\\?\\)$"
 		mock.ExpectExec(execSql).
 			WithArgs("hello", "1", "2", "3").WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 	}()
+	if tableSetter, ok := repo.(TableSetter); ok {
+		tableSetter.SetTable("books_hello_world")
+	}
 	err = repo.UpdateFields(context.Background(), Fields{
 		"id": "hello",
 	}, AuthorID([]string{"1", "2", "3"}))
@@ -307,11 +310,36 @@ func TestGormRepository_Update(t *testing.T) {
 	repo := New(gdb, &Book{})
 	func() {
 		mock.ExpectBegin()
-		execSql := "^UPDATE `books` SET `name`=\\?,`author_id`=\\? WHERE `id` = \\?$"
+		execSql := "^UPDATE `books_hello_world` SET `name`=\\?,`author_id`=\\? WHERE `id` = \\?$"
 		mock.ExpectExec(execSql).
 			WithArgs("", "", "hello").WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 	}()
+	if tableSetter, ok := repo.(TableSetter); ok {
+		tableSetter.SetTable("books_hello_world")
+	}
 	err = repo.Update(context.Background(), &Book{ID: "hello"})
+	assert.Nil(t, err)
+}
+
+func TestGormRepository_Create(t *testing.T) {
+	db, mock, err := sqlmock.New() // mock sql.DB
+	assert.Nil(t, err)
+	defer db.Close()
+	defer assert.Nil(t, mock.ExpectationsWereMet())
+	gdb, err := gorm.Open(dialector(db)) // open gorm db
+	assert.Nil(t, err)
+	repo := New(gdb, &Book{})
+	func() {
+		mock.ExpectBegin()
+		execSql := "^INSERT INTO `books_hello_world` \\(`id`,`name`,`author_id`\\) VALUES \\(\\?,\\?,\\?\\)$"
+		mock.ExpectExec(execSql).
+			WithArgs("hello", "", "").WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+	}()
+	if tableSetter, ok := repo.(TableSetter); ok {
+		tableSetter.SetTable("books_hello_world")
+	}
+	err = repo.Create(context.Background(), &Book{ID: "hello"})
 	assert.Nil(t, err)
 }

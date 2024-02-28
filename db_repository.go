@@ -40,6 +40,11 @@ type dbrepo struct {
 	model any
 }
 
+type RDBRepository interface {
+	Repository
+	TableSetter
+}
+
 // NewRepository
 // usage:
 //
@@ -66,7 +71,7 @@ type dbrepo struct {
 //	  	}
 //	  }
 //	  err := repo.Find(ctx, database.M(&books, &Book{}).With(&User{}, AuthorID(Field("users.id"))), Limit(20))
-func New(db *gorm.DB, model ...any) Repository {
+func New(db *gorm.DB, model ...any) RDBRepository {
 	return &dbrepo{db: db, hooks: make(map[int][]func(tx *gorm.DB) error), model: func() any {
 		if len(model) > 0 {
 			return model[0]
@@ -110,21 +115,23 @@ func (db *dbrepo) Count(ctx context.Context, v any, opts ...MatchOption) error {
 }
 
 func (db *dbrepo) Update(ctx context.Context, v any) error {
-	return db.transformError(db.db.Save(v).Error)
+	saver := db.getDB()
+	return db.transformError(saver.Save(v).Error)
 }
 
 func (db *dbrepo) Delete(ctx context.Context, opts ...MatchOption) error {
-	deletor := db.db.Model(db.model)
+	deletor := db.getDB()
 	db.applyOptions(deletor, opts...)
 	return db.transformError(deletor.Delete(db.model).Error)
 }
 
 func (db *dbrepo) Create(ctx context.Context, v any) error {
-	return db.transformError(db.db.Create(v).Error)
+	creator := db.getDB()
+	return db.transformError(creator.Create(v).Error)
 }
 
 func (db *dbrepo) UpdateFields(ctx context.Context, fields Fields, opts ...MatchOption) error {
-	updator := db.db.Model(db.model)
+	updator := db.getDB()
 	db.applyOptions(updator, opts...)
 	return updator.Updates(map[string]any(fields)).Error
 }
@@ -189,13 +196,17 @@ func (repo *dbrepo) compileMatchOptions(schema Schema, opt []MatchOption) (strin
 	return ret, values
 }
 
+func (repo *dbrepo) getDB() *gorm.DB {
+	if repo.table != "" {
+		return repo.db.Table(repo.table)
+	}
+	return repo.db.Model(repo.model)
+}
+
 func (repo *dbrepo) prepare(v any) (*gorm.DB, any) {
 	m, ok := v.(*Model)
 	if !ok {
-		if repo.table != "" {
-			return repo.db.Table(repo.table), v
-		}
-		return repo.db.Model(repo.model), v
+		return repo.getDB(), v
 	}
 	var model *gorm.DB
 	switch m.From.(type) {
