@@ -289,7 +289,7 @@ func (repo *dbrepo) prepare(v any) (*gorm.DB, any) {
 			fs += stmt.Quote(tableName) + "." + stmt.Quote(as)
 			continue
 		}
-		if !strings.Contains(field, ".") && !strings.Contains(field, "(") {
+		if !strings.Contains(field, ".") && !strings.Contains(field, "(") && !strings.Contains(field, " ") {
 			field = stmt.Quote(tableName + "." + field)
 		}
 		fs += fmt.Sprintf("%s AS %s", field, as)
