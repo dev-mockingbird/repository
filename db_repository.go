@@ -35,7 +35,6 @@ type GormStack interface {
 
 type dbrepo struct {
 	db    *gorm.DB
-	hooks map[int][]func(tx *gorm.DB) error
 	table string
 	model any
 }
@@ -72,7 +71,16 @@ type RDBRepository interface {
 //	  }
 //	  err := repo.Find(ctx, database.M(&books, &Book{}).With(&User{}, AuthorID(Field("users.id"))), Limit(20))
 func New(db *gorm.DB, model ...any) RDBRepository {
-	return &dbrepo{db: db, hooks: make(map[int][]func(tx *gorm.DB) error), model: func() any {
+	return &dbrepo{db: db, model: func() any {
+		if len(model) > 0 {
+			return model[0]
+		}
+		return nil
+	}()}
+}
+
+func NewWithTable(db *gorm.DB, tableName string, model ...any) RDBRepository {
+	return &dbrepo{db: db, table: tableName, model: func() any {
 		if len(model) > 0 {
 			return model[0]
 		}
@@ -115,7 +123,7 @@ func (db *dbrepo) Count(ctx context.Context, v any, opts ...MatchOption) error {
 }
 
 func (db *dbrepo) Update(ctx context.Context, v any) error {
-	saver := db.getDB()
+	saver := db.getDBForUpdate()
 	return db.transformError(saver.Save(v).Error)
 }
 
@@ -201,6 +209,13 @@ func (repo *dbrepo) getDB() *gorm.DB {
 		return repo.db.Table(repo.table)
 	}
 	return repo.db.Model(repo.model)
+}
+
+func (repo *dbrepo) getDBForUpdate() *gorm.DB {
+	if repo.table != "" {
+		return repo.db.Table(repo.table)
+	}
+	return repo.db
 }
 
 func (repo *dbrepo) prepare(v any) (*gorm.DB, any) {

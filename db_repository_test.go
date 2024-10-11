@@ -300,6 +300,25 @@ func TestGormRepository_Updates(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestGormRepository_Update_model(t *testing.T) {
+	db, mock, err := sqlmock.New() // mock sql.DB
+	assert.Nil(t, err)
+	defer db.Close()
+	defer assert.Nil(t, mock.ExpectationsWereMet())
+	gdb, err := gorm.Open(dialector(db)) // open gorm db
+	assert.Nil(t, err)
+	repo := New(gdb, &Book{})
+	func() {
+		mock.ExpectBegin()
+		execSql := "^UPDATE `books` SET `name`=\\?,`author_id`=\\? WHERE `id` = \\?$"
+		mock.ExpectExec(execSql).
+			WithArgs("", "", "hello").WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+	}()
+	err = repo.Update(context.Background(), &Book{ID: "hello"})
+	assert.Nil(t, err)
+}
+
 func TestGormRepository_Update(t *testing.T) {
 	db, mock, err := sqlmock.New() // mock sql.DB
 	assert.Nil(t, err)
